@@ -26,6 +26,16 @@ watched by a group of clusters.
 
 ## Project custom resource
 
+The Project's custom resource is used to point the controller to the Project's OCI repository.
+And to assign a Kubernetes Service Account that the controller will use to perform
+operations on the cluster when reconciling the Project's components.
+
+After creation, the Project's custom resource `.spec` is considered immutable.
+Changes to the Project's components can be made by updating the Project's source code,
+the custom resource is merely a pointer to the Project's OCI artifact.
+
+Example:
+
 ```yaml
 apiVersion: projects.timoni.sh/v1alpha1
 kind: Project
@@ -52,7 +62,7 @@ The `.spec.source` is used to fetch the OCI artifact from the container registry
 the Project's CUE definition and all the bundle and runtime files referenced by it.
 
 The `runtime.timoni.sh` annotations can be used to set runtime values that are automatically injected
-into the Project's bundles. Thus enabling the same Project to be deployed to multiple clusters while
+into the Project's bundles. Thus enabling the Project's source code to target multiple clusters while
 using different values for each cluster.
 
 ## Project structure
