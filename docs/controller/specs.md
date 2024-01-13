@@ -34,29 +34,30 @@ metadata:
   namespace: my-project-ns
   annotations:
     runtime.timoni.sh/cluster: "k8s-prod-1"
+    runtime.timoni.sh/group: "production"
 spec:
   serviceAccountName: "my-project-sa"
   source:
     repository: "oci://my-registry/my-project"
     tag: "production"
-    path: "./my-project.cue"
+    path: "project.cue"
 ```
 
 The `.spec.serviceAccountName` has a dual purpose:
 
-- It is used to attach image pull secrets for the project's repository and for all the modules' repositories.
+- It is used to attach image pull secrets for the Project's repository and for all the modules' repositories.
 - It is used for impersonation by the controller to perform operations on the cluster, thus ensuring tenant isolation.
 
 The `.spec.source` is used to fetch the OCI artifact from the container registry that contains
-the project's CUE definition and all the bundle and runtime files referenced by it.
+the Project's CUE definition and all the bundle and runtime files referenced by it.
 
 The `runtime.timoni.sh` annotations can be used to set runtime values that are automatically injected
-into the project's bundles. Thus enabling the same project to be deployed to multiple clusters while
+into the Project's bundles. Thus enabling the same Project to be deployed to multiple clusters while
 using different values for each cluster.
 
 ## Project structure
 
-The project's source code can be versioned in a Git repository and can be structured in various ways.
+The Project's source code can be versioned in a Git repository and can be structured in various ways.
 
 Example:
 
@@ -67,21 +68,25 @@ Example:
 ├── my-infra
 │   ├── bundle.cue 
 │   └── runtime.cue
-└── my-project.cue
+└── project.cue
 ```
 
 The contents of the Git repository are packaged as an OCI artifact and pushed to a container registry
 using the `timoni project push` command. From there, the controller will fetch the artifact and
-deploy the project to the cluster.
+deploy the Project to the cluster.
 
-Multiple projects can be stored in the same repository, and each project can
+Multiple Projects can be stored in the same repository, and each Project can
 be deployed to multiple clusters.
-For each target cluster, the project's bundles can contain different config values
+For each target cluster, the Project's bundles can contain different config values
 specific to that cluster or to its group of clusters.
 The runtime definitions allow bundles to use dynamic config values extracted from
 the target cluster, such as exiting Secrets, ConfigMaps and even custom resources.
 
-The `my-project.cue` file is the project's CUE definition, and it references the bundle and runtime files:
+## Project definition
+
+The Project's CUE definition contains a list of components that point to the Bundle and Runtime files.
+
+Example:
 
 ```cue
 project: {
@@ -102,11 +107,43 @@ project: {
 
 ```
 
-The controller will reconcile the project's components by applying
-the bundles using their corresponding runtime definitions.
+The controller will reconcile the Project's components by applying
+the Bundles using their corresponding Runtime definitions.
 By default, the controller will reconcile the components in parallel.
 The `needs` field can be used to define dependencies between components
 and thus control the order in which the bundles are applied.
+
+The `runtime` field is optional, when not specified, the controller will 
+inject the annotations values from the Project's custom resource into the Bundle.
+
+Example of a Bundle that uses the annotations values from the Project's custom resource:
+
+```cue
+bundle: {
+	_cluster: {
+		name:  string @timoni(runtime:string:TIMONI_CLUSTER_NAME)
+		group: string @timoni(runtime:string:TIMONI_CLUSTER_GROUP)
+	}
+
+	apiVersion: "v1alpha1"
+	name:       "my-app"
+	instances: {
+		podinfo: {
+			module: url: "oci://ghcr.io/stefanprodan/modules/podinfo"
+			namespace: "my-project-ns"
+			values: {
+				if _cluster.group == "staging" {
+					replicas: 1
+				}
+				if _cluster.group == "production" {
+					replicas: 2
+				}
+			}
+		}
+	}
+}
+
+```
 
 ## Project bootstrap
 
@@ -116,21 +153,22 @@ the Timoni CLI provides a `timoni project bootstrap` command.
 Example:
 
 ```shell
-timoni project bootstrap my-project.cue \
-  --repository oci://my-registry/my-project \
+timoni project bootstrap my-Project.cue \
+  --repository oci://my-registry/my-Project \
   --repository-creds $DOCKER_USER:$DOCKER_TOKEN \
   --tag production \
   --push-artifact true \
   --cluster-name k8s-prod-1 \
-  --namespace my-project-ns \
-  --service-account my-project-sa \
+  --cluster-group production \
+  --namespace my-Project-ns \
+  --service-account my-Project-sa \
   --service-account-role admin
 ```
 
 If the target cluster is not running the Timoni controller, the bootstrap command will
 prompt the user to confirm the installation of the controller in the `timoni-system` namespace.
 After the controller installation is complete,
-the bootstrap command will create the project's namespace, image pull secret, custom resource,
+the bootstrap command will create the Project's namespace, image pull secret, custom resource,
 service account and role binding.
 
 ## Project reconciliation
@@ -144,7 +182,7 @@ The reconciliation of a Project consists of the following operations:
 - Fetches the artifact metadata (OCI manifest) for the specified tag from the container registry.
 - Downloads the OCI artifact layers if they are not already cached.
 - Extracts the OCI artifact contents to a temporary directory.
-- Reads the project's CUE definition and validates the files referenced by each component.
+- Reads the Project's CUE definition and validates the files referenced by each component.
 - Determines the parallelization factor and the order in which the components will be reconciled.
 - Starts the reconciliation of each component in parallel.
 - When all components are reconciled, an event is emitted, and the Project's Status is updated to reflect
