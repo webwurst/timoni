@@ -36,11 +36,11 @@ metadata:
     runtime.timoni.sh/cluster: "k8s-prod-1"
     runtime.timoni.sh/group: "production"
 spec:
-  serviceAccountName: "my-project-sa"
+  serviceAccountName: "my-project-sa" # optional, defaults to the project name
   source:
-    repository: "oci://my-registry/my-project"
-    tag: "production"
-    path: "project.cue"
+    repository: "oci://my-registry/my-project" # required
+    tag: "production" # optional, defaults to "latest"
+    path: "project.cue" # optional, defaults to "project.cue"
 ```
 
 The `.spec.serviceAccountName` has a dual purpose:
@@ -70,10 +70,6 @@ Example:
 │   └── runtime.cue
 └── project.cue
 ```
-
-The contents of the Git repository are packaged as an OCI artifact and pushed to a container registry
-using the `timoni project push` command. From there, the controller will fetch the artifact and
-deploy the Project to the cluster.
 
 Multiple Projects can be stored in the same repository, and each Project can
 be deployed to multiple clusters.
@@ -145,6 +141,34 @@ bundle: {
 
 ```
 
+## Project publishing
+
+The contents of the Git repository can be packaged as an OCI artifact and pushed to a container registry
+using the `timoni artifact push` command. From there, the controller(s) will fetch the artifact and
+deploy the Project to cluster(s).
+
+Example:
+
+```shell
+timoni artifact push oci://oci://my-registry/my-project \
+  --tag=1.0.0 \
+  --tag=staging
+```
+
+The push operation can be performed by a CI pipeline when a change is committed to the Git repository.
+
+It is recommended to set an immutable tag that denotes the Git revision of the Project's source code.
+The revision tag can be semver or a Git commit SHA or any other format that contains a unique identifier.
+
+Mutable tags can be used to set the target group of clusters where a particular Project revision will be deployed.
+
+Example of promoting a Project revision to production:
+
+```shell
+timoni artifact tag oci://oci://my-registry/my-project:1.0.0 \
+  --tag=production
+```
+
 ## Project bootstrap
 
 To streamline the onboarding of Projects onto Kubernetes clusters,
@@ -153,23 +177,29 @@ the Timoni CLI provides a `timoni project bootstrap` command.
 Example:
 
 ```shell
-timoni project bootstrap my-Project.cue \
-  --repository oci://my-registry/my-Project \
-  --repository-creds $DOCKER_USER:$DOCKER_TOKEN \
-  --tag production \
-  --push-artifact true \
+timoni project bootstrap my-project \
   --cluster-name k8s-prod-1 \
   --cluster-group production \
-  --namespace my-Project-ns \
-  --service-account my-Project-sa \
-  --service-account-role admin
+  --namespace my-project-ns \
+  --service-account my-project-sa \
+  --service-account-role admin \
+  --repository oci://my-registry/my-project \
+  --repository-creds $DOCKER_USER:$DOCKER_TOKEN \
+  --tag production
 ```
 
 If the target cluster is not running the Timoni controller, the bootstrap command will
 prompt the user to confirm the installation of the controller in the `timoni-system` namespace.
-After the controller installation is complete,
-the bootstrap command will create the Project's namespace, image pull secret, custom resource,
+
+The bootstrap command will create the Project's namespace, image pull secret, custom resource,
 service account and role binding.
+
+If the Project's service account role is set to `admin`, this will grant the SA admin privileges
+only in the Project's namespace. If the Project's service account role is set to `cluster-admin`,
+this will grant the SA admin privileges in the entire cluster.
+
+Installing the Timoni controller and bootstrapping Projects across multiple clusters
+can also be accomplished with a Timoni Bundle or with a GitOps tool.
 
 ## Project reconciliation
 
@@ -222,7 +252,6 @@ flowchart LR
 The Timoni CLI provides a set of commands to manage Projects:
 
 - `timoni project bootstrap` - bootstraps a Project onto a Kubernetes cluster.
-- `timoni project push` - builds and pushes a Project to a container registry.
 - `timoni project reconcile` - triggers the reconciliation of a Project with an annotation.
 - `timoni project suspend` - suspends the reconciliation of a Project with an annotation.
 - `timoni project resume` - resumes the reconciliation of a Project with an annotation.
