@@ -113,6 +113,8 @@ and thus control the order in which the bundles are applied.
 To streamline the onboarding of Projects onto Kubernetes clusters,
 the Timoni CLI provides a `timoni project bootstrap` command.
 
+Example:
+
 ```shell
 timoni project bootstrap my-project.cue \
   --repository oci://my-registry/my-project \
@@ -124,3 +126,55 @@ timoni project bootstrap my-project.cue \
   --service-account my-project-sa \
   --service-account-role admin
 ```
+
+If the target cluster is not running the Timoni controller, the bootstrap command will
+prompt the user to confirm the installation of the controller in the `timoni-system` namespace.
+After the controller installation is complete,
+the bootstrap command will create the project's namespace, image pull secret, custom resource,
+service account and role binding.
+
+## Project reconciliation
+
+The reconciliation of a Project consists of the following operations:
+
+- Reads the image pull secrets attached to the Project's service account.
+- Connects to the container registry using the credentials from the image pull secrets.
+- If no secrets are found, the controller will use Kubernetes Workload Identity
+  to authenticate to the container registry.
+- Fetches the artifact metadata (OCI manifest) for the specified tag from the container registry.
+- Downloads the OCI artifact layers if they are not already cached.
+- Extracts the OCI artifact contents to a temporary directory.
+- Reads the project's CUE definition and validates the files referenced by each component.
+- Determines the parallelization factor and the order in which the components will be reconciled.
+- Starts the reconciliation of each component in parallel.
+- When all components are reconciled, an event is emitted, and the Project's Status is updated to reflect
+  the overall result.
+
+```mermaid
+flowchart LR
+    A(((Project))) --> B
+    B(Component A) --> C((Bundle))
+    C --> D(Instance A)
+    D --> E[Kubernetes <br /> Resources]
+    C --> G(Instance B)
+    G --> H[Kubernetes <br /> Resources]
+    A --> X
+    X(Component B) --> Y((Bundle))
+    Y --> Z(Instance D)
+    Z --> W[Kubernetes <br /> Resources]
+    Y --> T(Instance E)
+    T --> R[Kubernetes <br /> Resources]
+```
+
+ The reconciliation of a component consists of the following operations:
+
+- Loads the values from the Runtime definitions and injects them into the Bundle.
+- Downloads (if not cached) the Modules referenced by the Bundle using
+  the image pull secrets to authenticate to the container registry.
+- Applies the Bundle's Instances in order one-by-one.
+- Waits for each Instance to be rolled out and healthy before applying the next Instance.
+- If the reconciliation fails, the controller will retry the operation using a configurable exponential backoff.
+- When an Instance apply finishes, a Kubernetes event is emitted. The event contains the list of
+  applied resources, the error message if the Instance apply failed, the module version,
+  and the time it took to apply the Instance.
+- When the component reconciliation finishes, it's status is reflected in the Project's Status.
