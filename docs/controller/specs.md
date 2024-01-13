@@ -178,3 +178,20 @@ flowchart LR
   applied resources, the error message if the Instance apply failed, the module version,
   and the time it took to apply the Instance.
 - When the component reconciliation finishes, it's status is reflected in the Project's Status.
+
+## Project commands
+
+The Timoni CLI provides a set of commands to manage Projects:
+
+- `timoni project bootstrap` - bootstraps a Project onto a Kubernetes cluster.
+- `timoni project push` - builds and pushes a Project to a container registry.
+- `timoni project reconcile` - triggers the reconciliation of a Project with an annotation.
+- `timoni project suspend` - suspends the reconciliation of a Project with an annotation.
+- `timoni project resume` - resumes the reconciliation of a Project with an annotation.
+- `timoni project delete` - deletes a Project from a Kubernetes cluster.
+
+The Timoni CLI provides a set of commands to inspect Projects:
+
+- `timoni project list` - lists the Projects and their last reconcile status.
+- `timoni project status` - prints the Project's status with details about each component.
+- `timoni project events` - prints all the events related to a Project.
