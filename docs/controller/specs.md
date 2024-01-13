@@ -1,10 +1,37 @@
-# Timoni Project Specifications
+# [RFC] Timoni Controller
+
+## Controller overview
+
+The Timoni controller is a Kubernetes operator that manages the lifecycle
+of applications packaged as Timoni Modules and configured with Timoni Bundles.
+
+The controller is responsible for reconciling the application's
+desired state with the actual state of the Kubernetes cluster. The controller
+performs the same operations as the Timoni CLI, but in a declarative way and
+fully autonomous. Its main purpose is to automate the deployment of applications
+across fleets of Kubernetes clusters without the need for human intervention.
+
+The Timoni controller subscribes to the [GitOps principles](https://opengitops.dev/),
+but instead of relying on Git as the source of truth, it uses container registries
+and OCI artifacts. To make use of the controller in a GitOps fashion, a CI pipeline
+is needed to publish the desired state definitions from the Git repo to a container registry.
+
+The controller comes with a Kubernetes custom resource definition (CRD) called **Project**.
+The Project custom resources are used to point the controller to the OCI artifacts that contain
+the cluster desired state. All the actions performed by the controller are logged as Kubernetes
+events and are reflected in the Project's status.
+
+The controller has the capability to configure the managed applications using dynamic values
+extracted from the live cluster. Thus reducing the verbosity of the apps definitions
+and enabling a better separation of concerns between the application developers and the cluster operators.
+
+## Project API
 
 A Timoni Project is a collection of Bundles that are automatically deployed to a fleet of Kubernetes clusters.
 The Project's source code can be versioned in a Git repository and must be published to a container registry.
 
 Clusters that are running the Timoni controller can subscribe to a Project using a Kubernetes custom resource
-that contains the Project's container registry URL and the artifact tag. 
+that contains the Project's container registry URL and the artifact tag.
 
 ```mermaid
 flowchart LR
@@ -24,7 +51,7 @@ configuration, that are published to a container registry, will be automatically
 Promoting changes from one environment to another can be done by tagging an artifact digest with a tag name
 watched by a group of clusters.
 
-## Project custom resource
+### Project custom resource
 
 The Project's custom resource is used to point the controller to the Project's OCI repository.
 And to assign a Kubernetes Service Account that the controller will use to perform
@@ -65,7 +92,7 @@ The `runtime.timoni.sh` annotations can be used to set runtime values that are a
 into the Project's bundles. Thus enabling the Project's source code to target multiple clusters while
 using different values for each cluster.
 
-## Project structure
+### Project structure
 
 The Project's source code can be versioned in a Git repository and can be structured in various ways.
 
@@ -88,7 +115,7 @@ specific to that cluster or to its group of clusters.
 The runtime definitions allow bundles to use dynamic config values extracted from
 the target cluster, such as exiting Secrets, ConfigMaps and even custom resources.
 
-## Project definition
+### Project definition
 
 The Project's CUE definition contains a list of components that point to the Bundle and Runtime files.
 
@@ -119,7 +146,7 @@ By default, the controller will reconcile the components in parallel.
 The `needs` field can be used to define dependencies between components
 and thus control the order in which the bundles are applied.
 
-The `runtime` field is optional, when not specified, the controller will 
+The `runtime` field is optional, when not specified, the controller will
 inject the annotations values from the Project's custom resource into the Bundle.
 
 Example of a Bundle that uses the annotations values from the Project's custom resource:
@@ -151,7 +178,7 @@ bundle: {
 
 ```
 
-## Project publishing
+### Project publishing
 
 The contents of the Git repository can be packaged as an OCI artifact and pushed to a container registry
 using the `timoni artifact push` command. From there, the controller(s) will fetch the artifact and
@@ -160,7 +187,7 @@ deploy the Project to cluster(s).
 Example:
 
 ```shell
-timoni artifact push oci://oci://my-registry/my-project \
+timoni artifact push oci://my-registry/my-project \
   --tag=1.0.0 \
   --tag=staging
 ```
@@ -175,11 +202,11 @@ Mutable tags can be used to set the target group of clusters where a particular 
 Example of promoting a Project revision to production:
 
 ```shell
-timoni artifact tag oci://oci://my-registry/my-project:1.0.0 \
+timoni artifact tag oci://my-registry/my-project:1.0.0 \
   --tag=production
 ```
 
-## Project bootstrap
+### Project bootstrap
 
 To streamline the onboarding of Projects onto Kubernetes clusters,
 the Timoni CLI provides a `timoni project bootstrap` command.
@@ -211,7 +238,7 @@ this will grant the SA admin privileges in the entire cluster.
 Installing the Timoni controller and bootstrapping Projects across multiple clusters
 can also be accomplished with a Timoni Bundle or with a GitOps tool.
 
-## Project reconciliation
+### Project reconciliation
 
 The reconciliation of a Project consists of the following operations:
 
@@ -238,13 +265,13 @@ flowchart LR
     G --> H[Kubernetes <br /> Resources]
     A --> X
     X(Component B) --> Y((Bundle))
-    Y --> Z(Instance D)
+    Y --> Z(Instance C)
     Z --> W[Kubernetes <br /> Resources]
-    Y --> T(Instance E)
+    Y --> T(Instance D)
     T --> R[Kubernetes <br /> Resources]
 ```
 
- The reconciliation of a component consists of the following operations:
+The reconciliation of a component consists of the following operations:
 
 - Loads the values from the Runtime definitions and injects them into the Bundle.
 - Downloads (if not cached) the Modules referenced by the Bundle using
@@ -257,11 +284,13 @@ flowchart LR
   and the time it took to apply the Instance.
 - When the component reconciliation finishes, it's status is reflected in the Project's Status.
 
-## Project commands
+### Project commands
 
 The Timoni CLI provides a set of commands to manage Projects:
 
 - `timoni project bootstrap` - bootstraps a Project onto a Kubernetes cluster.
+- `timoni project vet` - validates the Project's source code.
+- `timoni project diff` - preview local changes to a Project by performing a dry-run reconciliation.
 - `timoni project reconcile` - triggers the reconciliation of a Project with an annotation.
 - `timoni project suspend` - suspends the reconciliation of a Project with an annotation.
 - `timoni project resume` - resumes the reconciliation of a Project with an annotation.
