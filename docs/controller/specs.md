@@ -25,7 +25,7 @@ The controller has the capability to configure the managed applications using dy
 extracted from the live cluster. Thus reducing the verbosity of the apps definitions
 and enabling a better separation of concerns between the application developers and the cluster operators.
 
-## Project API
+## Project specifications
 
 A Timoni Project is a collection of Bundles that are automatically deployed to a fleet of Kubernetes clusters.
 The Project's source code can be versioned in a Git repository and must be published to a container registry.
@@ -53,7 +53,7 @@ watched by a group of clusters.
 
 ### Project custom resource
 
-The Project's custom resource is used to point the controller to the Project's OCI repository.
+The Project's custom resource role is to point the controller to the Project's OCI repository.
 And to assign a Kubernetes Service Account that the controller will use to perform
 operations on the cluster when reconciling the Project's components.
 
@@ -286,18 +286,26 @@ The reconciliation of a component consists of the following operations:
 
 ### Project commands
 
-The Timoni CLI provides a set of commands to manage Projects:
+The Timoni CLI provides a set of commands to help manage and inspect Projects.
+
+#### Lifecycle
 
 - `timoni project bootstrap` - bootstraps a Project onto a Kubernetes cluster.
-- `timoni project vet` - validates the Project's source code.
-- `timoni project diff` - preview local changes to a Project by performing a dry-run reconciliation.
-- `timoni project reconcile` - triggers the reconciliation of a Project with an annotation.
-- `timoni project suspend` - suspends the reconciliation of a Project with an annotation.
-- `timoni project resume` - resumes the reconciliation of a Project with an annotation.
 - `timoni project delete` - deletes a Project from a Kubernetes cluster.
 
-The Timoni CLI provides a set of commands to inspect Projects:
+#### Inspection
 
 - `timoni project list` - lists the Projects and their last reconcile status.
 - `timoni project status` - prints the Project's status with details about each component.
 - `timoni project events` - prints all the events related to a Project.
+
+#### Reconciliation
+
+- `timoni project reconcile` - triggers the reconciliation of a Project with an annotation.
+- `timoni project suspend` - suspends the reconciliation of a Project with an annotation.
+- `timoni project resume` - resumes the reconciliation of a Project with an annotation.
+
+#### Development
+
+- `timoni project vet` - validates the Project's source code.
+- `timoni project diff` - preview local changes to a Project by performing a dry-run reconciliation.
