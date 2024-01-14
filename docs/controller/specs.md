@@ -133,11 +133,11 @@ project: {
 		}
 		"my-infra": {
 			bundle: ["./my-infra/bundle.cue"]
-			runtime: ["./my-infra/runtime.cue"]
+			wait:    true
+			timeout: "5m"
 		}
 	}
 }
-
 ```
 
 The controller will reconcile the Project's components by applying
@@ -145,6 +145,14 @@ the Bundles using their corresponding Runtime definitions.
 By default, the controller will reconcile the components in parallel.
 The `needs` field can be used to define dependencies between components
 and thus control the order in which the bundles are applied.
+
+The `wait` field can be used to instruct the controller to wait for all applied resources
+to become ready. The controller will monitor the rollout of Kubernetes Deployments,
+StatefulSets, DaemonSets, Jobs and custom resources and will wait for all the rollout
+to finish before reconciling the dependent components.
+
+The `timeout` field can be used to set a timeout for the reconciliation of a component
+including the wait time for all resources to become ready.
 
 The `runtime` field is optional, when not specified, the controller will
 inject the annotations values from the Project's custom resource into the Bundle.
