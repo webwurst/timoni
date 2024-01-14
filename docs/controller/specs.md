@@ -318,7 +318,7 @@ The Timoni CLI provides a set of commands to help manage and inspect Projects.
 - `timoni project vet` - validates the Project's source code.
 - `timoni project diff` - preview local changes to a Project by performing a dry-run reconciliation.
 
-## Continuous Delivery Events
+## Continuous Delivery events
 
 To ensure interoperability with other tools and processes part of the Continuous Delivery pipeline,
 the Timoni Controller can receive and emit events that conform to the [CDEvents](https://cdevents.dev)
@@ -347,3 +347,36 @@ The controller can report reconciliation failures & recovery as
 of type `incident`.
 
 The events are posted to a HTTP/S endpoint that can be configured on a Project basis.
+
+## Prometheus metrics
+
+The controller exposes Prometheus metrics on a dedicated port under the `/metrics` endpoint.
+
+### Performance metrics
+
+The controller publishes a collection of performance metrics such as a histogram of the reconciliation duration,
+number of successful and failed reconciliations, number of HTTP requests made to the Kubernetes API server,
+partitioned by status code, method, and path. The complete list of controller-runtime metrics can be found
+[here](https://book.kubebuilder.io/reference/metrics-reference).
+
+### Project metrics
+
+The controller publishes a collection of metrics for each Instance that is part of a Project.
+
+Metrics:
+
+- `timoni_instance_reconcile_duration_seconds` - histogram of the Instance reconciliation duration.
+- `timoni_instance_info` - information about the current state of the Instance.
+
+Labels:
+
+- `instance_name` - the name of the Instance.
+- `instance_namespace` - the namespace of the Instance.
+- `ready` - the ready status of the Instance.
+- `module_name` - the name of the Module.
+- `module_version` - the version of the Module.
+- `project_name` - the name of the Project.
+- `project_namespace` - the namespace of the Project.
+- `project_component` - the name of the Project component.
+- `project_source` - the OCI address of the Project.
+- `project_revison` - the OCI tag and digest of the Project.
