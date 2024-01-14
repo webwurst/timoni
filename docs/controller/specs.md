@@ -317,3 +317,33 @@ The Timoni CLI provides a set of commands to help manage and inspect Projects.
 
 - `timoni project vet` - validates the Project's source code.
 - `timoni project diff` - preview local changes to a Project by performing a dry-run reconciliation.
+
+## Continuous Delivery Events
+
+To ensure interoperability with other tools and processes part of the Continuous Delivery pipeline,
+the Timoni Controller can receive and emit events that conform to the [CDEvents](https://cdevents.dev)
+specification.
+
+### Inbound Events
+
+The controller can receive
+[Continuous Integration Events](https://github.com/cdevents/spec/blob/v0.3.0/continuous-integration.md)
+and handle the `artifact published` event type by triggering the reconciliation of a Project.
+
+The receiver HTTP endpoint runs on a dedicated port that can be
+exposed using a Kubernetes Service and Ingress.
+
+### Outbound Events
+
+The controller can emit
+[Continuous Deployment Events](https://github.com/cdevents/spec/blob/v0.3.0/continuous-deployment.md)
+as follows:
+
+- Timoni Projects lifecycle events will be emitted as CDEvents of type `environment`.
+- Timoni Instances lifecycle events will be emitted as CDEvents of type `service`.
+
+The controller can report reconciliation failures & recovery as
+[Continuous Operations Events](https://github.com/cdevents/spec/blob/v0.3.0/continuous-operations.md)
+of type `incident`.
+
+The events are posted to a HTTP/S endpoint that can be configured on a Project basis.
